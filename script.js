@@ -1,4 +1,3 @@
-//your JS code here. If required.
 const RANDOM_QUOTE_API_URL = 'https://api.quotable.io/random';
 const quoteDisplayElement = document.getElementById('quoteDisplay');
 const quoteInputElement = document.getElementById('quoteInput');
@@ -6,9 +5,11 @@ const timerElement = document.getElementById('timer');
 
 let timerInterval;
 let startTime;
+let isWaiting = false; // Flag to prevent multi-triggering while waiting
 
-// Event listener to check input correctness in real-time
 quoteInputElement.addEventListener('input', () => {
+    if (isWaiting) return; // Ignore input if we are in the 3-second transition phase
+
     const arrayQuote = quoteDisplayElement.querySelectorAll('span');
     const arrayValue = quoteInputElement.value.split('');
 
@@ -18,46 +19,38 @@ quoteInputElement.addEventListener('input', () => {
         const character = arrayValue[index];
         
         if (character == null) {
-            // Character has not been typed yet
             characterSpan.classList.remove('correct');
             characterSpan.classList.remove('incorrect');
             correct = false;
         } else if (character === characterSpan.innerText) {
-            // Typed correctly
             characterSpan.classList.add('correct');
             characterSpan.classList.remove('incorrect');
         } else {
-            // Typed incorrectly
             characterSpan.classList.remove('correct');
             characterSpan.classList.add('incorrect');
             correct = false;
         }
     });
 
-    // If everything is typed perfectly
     if (correct) {
         handleSuccess();
     }
 });
 
-// Function to fetch a random quote from API
 async function getRandomQuote() {
     try {
         const response = await fetch(RANDOM_QUOTE_API_URL);
         const data = await response.json();
         return data.content;
     } catch (error) {
-        // Fallback quote in case the public API is down or blocked by CORS
         return "The quick brown fox jumps over the lazy dog.";
     }
 }
 
-// Function to render a new quote to screen
 async function renderNewQuote() {
     const quote = await getRandomQuote();
     quoteDisplayElement.innerHTML = '';
     
-    // Split quote into individual characters inside spans for target styling
     quote.split('').forEach(character => {
         const characterSpan = document.createElement('span');
         characterSpan.innerText = character;
@@ -65,27 +58,24 @@ async function renderNewQuote() {
     });
     
     quoteInputElement.value = null;
+    isWaiting = false; // Reset the phase flag
     startTimer();
 }
 
-// Function handling the successful completion setup
 function handleSuccess() {
-    // Stop the timer
-    clearInterval(timerInterval);
+    isWaiting = true; // Mark as waiting phase
     
-    // Disable input while waiting for the next quote
-    quoteInputElement.disabled = true;
-
-    // Wait 3 seconds before resetting
+    // Crucial change: Do NOT clear the interval here. 
+    // Let the timer continue ticking (so it can hit 7, 8, etc. during the wait)
+    
     setTimeout(() => {
-        timerElement.innerText = 0; // Set timer to zero
-        quoteInputElement.value = ''; // Clear input area
-        quoteInputElement.disabled = false;
-        renderNewQuote(); // Fetch another random quote
-    }, 3000);
+        clearInterval(timerInterval); // Stop the old timer now
+        timerElement.innerText = 0;   // Set the timer to zero
+        quoteInputElement.value = '';  // Clear the input area
+        renderNewQuote();             // Fetch another random quote
+    }, 3000); // Wait exactly 3 seconds
 }
 
-// Timer Logic
 function startTimer() {
     timerElement.innerText = 0;
     startTime = new Date();
@@ -100,5 +90,5 @@ function getTimerTime() {
     return Math.floor((new Date() - startTime) / 1000);
 }
 
-// Initialize the game on load
+// Initialize the game
 renderNewQuote();
